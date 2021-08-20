@@ -41,6 +41,9 @@ Imports:
     didehpc,
     pkgdepends
 Remotes:
-    mrc-ide/squire
-    mrc-ide/odin
+    mrc-ide/squire,
+    mrc-ide/odin,
+    mrc-ide/didehpc,
+    vimc/orderly
+    
 RoxygenNote: 7.1.1

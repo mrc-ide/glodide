@@ -71,11 +71,17 @@ on the network share and so this separation currently seems the best approach.
 
 ## Troubleshooting
 
-[1. LaTeX and PDF Compile Issues?](#1-latex-and-pdf-compile-issues)
+[1. LaTeX and PDF Compile Issues](#1-latex-and-pdf-compile-issues)
+
+[2. Google Tag Pandoc Issues](#2-google-tag-pandoc-issues)
+
+[3. Context 24 Core Template](#3-context-24-core-template)
+
+[4. Context 24 Core Template](#3-context-24-core-template)
 
 ---
 
-#### 1. LaTeX and PDF Compile Issues?
+#### 1. LaTeX and PDF Compile Issues
   
 PDF compilation was initially tricky with the default setup not having pandoc on a network share nor being able to correctly compile the PDF document from orderly runs. As a result, both [TinyTex](https://yihui.org/tinytex/) and pandoc were installed onto the network share at `L:/OJ` (pandoc was then copied over to its location on the network share):
 
