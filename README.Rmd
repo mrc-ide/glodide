@@ -71,7 +71,7 @@ on the network share and so this separation currently seems the best approach.
 
 ## Troubleshooting
 
-[1. LaTeX and PDF Compile Issues?](#latex-and-pdf-compile-issues)
+[1. LaTeX and PDF Compile Issues?](#1-latex-and-pdf-compile-issues)
 
 ---
 
