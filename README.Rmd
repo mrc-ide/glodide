@@ -77,8 +77,15 @@ on the network share and so this separation currently seems the best approach.
 
 [3. Context 24 Core Template](#3-context-24-core-template)
 
-[4. Context 24 Core Template](#3-context-24-core-template)
+[4. Pandoc Erros](#4-pandoc-errors)
 
+[5. Didehpc Errors](#5-didehpc-errors)
+
+[6. Reconcile Errors](#6-reconcile-errors)
+
+[7. Mapping Network Drives](#7-mapping-network-drives)
+
+[8. Updating packages in context](#8-updating-packages-in-context)
 ---
 
 #### 1. LaTeX and PDF Compile Issues
@@ -103,6 +110,13 @@ if (file.exists("L:\\OJ\\pandoc")) {
 ```
 
 <br>
+
+#### 6. Reconcile Errors
+
+```{r}
+dat <- obj$client$status_user("*", obj$config$cluster)
+dat[vapply(grp$ids, grep, numeric(1), dat$name),]
+```
 
 ---
 
