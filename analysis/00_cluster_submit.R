@@ -57,7 +57,7 @@ obj <- didehpc::queue_didehpc(ctx, config = config)
 ## 3. Submit the jobs
 ## ------------------------------------
 
-date <- "2021-08-19"
+date <- "2021-08-25"
 test <- FALSE
 if(test) {
 workdir <- file.path("analysis/data/","derived_test", date)
@@ -127,16 +127,7 @@ bundle_name <- paste0("rerun_", paste0(tail(rev(split_path(workdir)), 2), collap
 grp_rerun <- obj$lapply(tasks, orderly::orderly_bundle_run, workdir = workdir,
                   name = bundle_name)
 
-# Grabbing more tasks to be run
-tasks <- readRDS(gsub("derived", "raw", file.path(workdir, "BGD_to_rerun.rds")))
-tasks <- as.character(vapply(tasks, "[[", character(1), "path"))
-
-# submit our tasks to the cluster
-split_path <- function(x) if (dirname(x)==x) x else c(basename(x),split_path(dirname(x)))
-bundle_name <- paste0("BGD_", paste0(tail(rev(split_path(workdir)), 2), collapse = "_"))
-grp_bgd <- obj$lapply(tasks, orderly::orderly_bundle_run, workdir = workdir,
-                        name = bundle_name, overwrite = TRUE)
-
+table(grp_rerun$status())
 
 ## ------------------------------
 ## 7. Functions to extract objects from zips for checking
