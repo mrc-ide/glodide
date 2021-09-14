@@ -1,9 +1,9 @@
 # Setting Up Cluster From New
 
 # Log in to didehpc
-credentials = "C:/Users/ow813/.smbcredentials"
+credentials = "C:/Users/gbarnsle/.smbcredentials"
 options(didehpc.cluster = "fi--didemrchnb",
-        didehpc.username = "ow813")
+        didehpc.username = "gbarnsle")
 
 ## ------------------------------------
 ## 1. Package Installations
@@ -24,15 +24,15 @@ didehpc::didehpc_config_global(temp=didehpc::path_mapping("tmp",
                                                           "T:",
                                                           "//fi--didef3.dide.ic.ac.uk/tmp",
                                                           "T:"),
-                               home=didehpc::path_mapping("OJ",
-                                                          "L:",
-                                                          "//fi--didenas5/malaria",
-                                                          "L:"),
+                               home=didehpc::path_mapping("GB",
+                                                          "Q:",
+                                                          "//fi--san03/homes/gbarnsle",
+                                                          "Q:"),
                                credentials=credentials,
                                cluster = "fi--didemrchnb")
 
 # Creating a Context
-context_name <- paste0("L:/OJ/glodide/context")
+context_name <- paste0("Q:/COVID-Fitting/glodide/context")
 
 ctx <- context::context_save(
   path = context_name,
@@ -57,13 +57,18 @@ obj <- didehpc::queue_didehpc(ctx, config = config)
 ## 3. Submit the jobs
 ## ------------------------------------
 
-date <- "2021-08-25"
-test <- FALSE
-if(test) {
-workdir <- file.path("analysis/data/","derived_test", date)
-} else {
-  workdir <- file.path("analysis/data/", "derived", date)
-}
+date <- "2021-09-09"
+short_run <- FALSE
+excess_mortality <- TRUE
+workdir <- file.path(
+  "analysis/data/",
+  paste0(
+    "derived",
+    ifelse(excess_mortality, "_excess", ""),
+    ifelse(short_run, "_test", "")
+  ),
+  date
+)
 dir.create(workdir, recursive = TRUE, showWarnings = FALSE)
 workdir <- normalizePath(workdir)
 
