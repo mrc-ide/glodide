@@ -57,7 +57,7 @@ obj <- didehpc::queue_didehpc(ctx, config = config)
 ## 3. Submit the jobs
 ## ------------------------------------
 
-date <- "2021-09-09"
+date <- "2021-09-24"
 short_run <- FALSE
 excess_mortality <- TRUE
 workdir <- file.path(
@@ -86,6 +86,18 @@ grp <- obj$lapply(tasks, orderly::orderly_bundle_run, workdir = workdir,
 ## 4. Check on our jobs
 ## ------------------------------------
 
+#get the resubmit function
+source(file.path(here::here(), "analysis", "resubmit_func.R"))
+
+keep_running <- TRUE
+while(keep_running){
+  Sys.sleep(30*60)
+  keep_running <- resubmit_func(obj, grp)
+  status <- grp$status()
+  print(table(status))
+}
+
+
 # check on their status
 status <- grp$status()
 table(status)
@@ -94,6 +106,11 @@ table(status)
 errs <- lapply(seq_along(which(status == "ERROR")), function(x){
   grp$tasks[[which(status == "ERROR")[x]]]$log()$body
 })
+
+#code to get iso3 no of errored countries
+unlist(lapply(errs, function(x){
+  stringr::str_split(x[[18]][2], ": ")[[1]][2]
+  }))
 
 # sometimes tasks say running or completed when in fact they have errored:
 didehpc:::reconcile(obj, grp$ids)
@@ -133,6 +150,30 @@ grp_rerun <- obj$lapply(tasks, orderly::orderly_bundle_run, workdir = workdir,
                   name = bundle_name)
 
 table(grp_rerun$status())
+didehpc:::reconcile(obj, grp_rerun$ids)
+
+# see what has errorred
+errs <- lapply(seq_along(which(grp_rerun$status() == "ERROR")), function(x){
+  grp_rerun$tasks[[which(grp_rerun$status() == "ERROR")[x]]]$log()$body
+})
+
+tasks <- readRDS(gsub("derived", "raw", file.path(workdir, "bundles_to_rerun_2.rds")))
+tasks <- as.character(vapply(tasks, "[[", character(1), "path"))
+
+# submit our tasks to the cluster
+split_path <- function(x) if (dirname(x)==x) x else c(basename(x),split_path(dirname(x)))
+bundle_name <- paste0("rerun_2_", paste0(tail(rev(split_path(workdir)), 2), collapse = "_"))
+grp_rerun_2 <- obj$lapply(tasks, orderly::orderly_bundle_run, workdir = workdir,
+                        name = bundle_name)
+
+table(grp_rerun_2$status())
+didehpc:::reconcile(obj, grp_rerun_2$ids)
+
+# see what has errorred
+errs <- lapply(seq_along(which(grp_rerun_2$status() == "ERROR")), function(x){
+  grp_rerun_2$tasks[[which(grp_rerun_2$status() == "ERROR")[x]]]$log()$body
+})
+
 
 ## ------------------------------
 ## 7. Functions to extract objects from zips for checking
