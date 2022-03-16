@@ -32,40 +32,38 @@ didehpc::didehpc_config_global(temp=didehpc::path_mapping("tmp",
                                cluster = "fi--didemrchnb")
 
 # Creating a Context
-context_name <- paste0("Q:/COVID-Fitting/glodide/context")
+context_name <- paste0("Q:/COVID-Fitting/help/glodide/context")
 
 ctx <- context::context_save(
   path = context_name,
   package_sources = conan::conan_sources(
     packages = c(
-      "vimc/orderly", "mrc-ide/squire@v0.6.9", "mrc-ide/nimue",
+      "vimc/orderly", "mrc-ide/squire", "mrc-ide/nimue", "mrc-ide/squire.page",
       c('tinytex','knitr', 'tidyr', 'ggplot2', 'ggrepel', 'magrittr', 'dplyr', 'here', "lubridate", "rmarkdown",
-        'stringdist','plotly', 'rvest', 'xml2', 'ggforce', 'countrycode', 'cowplot', 'RhpcBLASctl', 'nimue')
+        'stringdist','plotly', 'rvest', 'xml2', 'ggforce', 'countrycode', 'cowplot', 'RhpcBLASctl', 'nimue',
+        'squire.page', "ggpubr")
       ),
     repos = "https://ncov-ic.github.io/drat/")
   )
 
 # set up a specific config for here as we need to specify the large RAM nodes
-config <- didehpc::didehpc_config(template = "24Core")
+config <- didehpc::didehpc_config(template = "GeneralNodes")
 config$resource$parallel <- "FALSE"
 config$resource$type <- "Cores"
-
+config$resource$count <- 3
 # Configure the Queue
 obj <- didehpc::queue_didehpc(ctx, config = config)
 
-## ------------------------------------
 ## 3. Submit the jobs
 ## ------------------------------------
 
-date <- "2021-09-24"
-short_run <- FALSE
+date <- "2022-01-31"#"2021-12-08"
 excess_mortality <- TRUE
 workdir <- file.path(
   "analysis/data/",
   paste0(
     "derived",
-    ifelse(excess_mortality, "_excess", ""),
-    ifelse(short_run, "_test", "")
+    ifelse(excess_mortality, "_excess", "")
   ),
   date
 )
@@ -79,61 +77,37 @@ tasks <- as.character(vapply(tasks, "[[", character(1), "path"))
 # submit our tasks to the cluster
 split_path <- function(x) if (dirname(x)==x) x else c(basename(x),split_path(dirname(x)))
 bundle_name <- paste0(tail(rev(split_path(workdir)), 2), collapse = "_")
-grp <- obj$lapply(tasks, orderly::orderly_bundle_run, workdir = workdir,
-                  name = bundle_name)
+grp_reported <- obj$lapply(tasks, orderly::orderly_bundle_run, workdir = workdir,
+                  name = paste0(bundle_name, "_2"))
 
 ## ------------------------------------
 ## 4. Check on our jobs
 ## ------------------------------------
 
+didehpc:::reconcile(obj, grp$ids)
+table(grp$status())
+
 #get the resubmit function
 source(file.path(here::here(), "analysis", "resubmit_func.R"))
 
-keep_running <- TRUE
-while(keep_running){
+while(keep_running | keep_running_2){
   Sys.sleep(30*60)
-  keep_running <- resubmit_func(obj, grp)
-  status <- grp$status()
-  print(table(status))
+  print("LMIC")
+  keep_running <- resubmit_func(obj, grp_lmic)
+  print(table(grp_lmic$status()))
+  print("Excess")
+  keep_running_2 <- resubmit_func(obj, grp_excess)
+  print(table(grp_excess$status()))
 }
 
+# see what has errored
+errs <- get_errors(grp_lmic)
 
-# check on their status
-status <- grp$status()
-table(status)
-
-# see what has errorred
-errs <- lapply(seq_along(which(status == "ERROR")), function(x){
-  grp$tasks[[which(status == "ERROR")[x]]]$log()$body
-})
-
-#code to get iso3 no of errored countries
-unlist(lapply(errs, function(x){
-  stringr::str_split(x[[18]][2], ": ")[[1]][2]
-  }))
-
-# sometimes tasks say running or completed when in fact they have errored:
-didehpc:::reconcile(obj, grp$ids)
-status <- grp$status()
-errs <- lapply(seq_along(which(status == "ERROR")), function(x){
-  grp$tasks[[which(status == "ERROR")[x]]]$log()$body[[19]]
-})
+#get their iso3cs
+dput(get_iso3cs(grp_excess, c("ERROR", "RUNNING")))
 
 # do we just need to rerun some of the bundles
-to_rerun <- which(grp$status() == "ERROR")
-unlink(gsub("\\.zip", "", gsub("raw", "derived", grp$X[to_rerun])), recursive = TRUE)
-obj$submit(grp$ids[to_rerun])
-
-
-## ------------------------------------
-## 5. Check on our jobs from a new R session
-## ------------------------------------
-
-# what were run for the date in question
-grep(date, obj$task_bundle_list(), value = TRUE)
-
-# we can get an old task bundle as follows
-grp <- obj$task_bundle_get("derived_2021-08-19")
+resubmit_all(grp_lmic, c("ERROR"))
 
 ## ------------------------------------
 ## 6. Submit new jobs that come from a different bundle - this bit you will rewrite
@@ -146,34 +120,17 @@ tasks <- as.character(vapply(tasks, "[[", character(1), "path"))
 # submit our tasks to the cluster
 split_path <- function(x) if (dirname(x)==x) x else c(basename(x),split_path(dirname(x)))
 bundle_name <- paste0("rerun_", paste0(tail(rev(split_path(workdir)), 2), collapse = "_"))
-grp_rerun <- obj$lapply(tasks, orderly::orderly_bundle_run, workdir = workdir,
-                  name = bundle_name)
+grp_excess_2 <- obj$lapply(tasks, orderly::orderly_bundle_run, workdir = workdir,
+                  name = paste0(bundle_name, "_4"))
 
-table(grp_rerun$status())
 didehpc:::reconcile(obj, grp_rerun$ids)
+table(grp_rerun$status())
 
 # see what has errorred
-errs <- lapply(seq_along(which(grp_rerun$status() == "ERROR")), function(x){
-  grp_rerun$tasks[[which(grp_rerun$status() == "ERROR")[x]]]$log()$body
-})
 
-tasks <- readRDS(gsub("derived", "raw", file.path(workdir, "bundles_to_rerun_2.rds")))
-tasks <- as.character(vapply(tasks, "[[", character(1), "path"))
+errs <- get_errors(grp_rerun)
 
-# submit our tasks to the cluster
-split_path <- function(x) if (dirname(x)==x) x else c(basename(x),split_path(dirname(x)))
-bundle_name <- paste0("rerun_2_", paste0(tail(rev(split_path(workdir)), 2), collapse = "_"))
-grp_rerun_2 <- obj$lapply(tasks, orderly::orderly_bundle_run, workdir = workdir,
-                        name = bundle_name)
-
-table(grp_rerun_2$status())
-didehpc:::reconcile(obj, grp_rerun_2$ids)
-
-# see what has errorred
-errs <- lapply(seq_along(which(grp_rerun_2$status() == "ERROR")), function(x){
-  grp_rerun_2$tasks[[which(grp_rerun_2$status() == "ERROR")[x]]]$log()$body
-})
-
+resubmit_all(grp_rerun, c("ERROR", "MISSING"))
 
 ## ------------------------------
 ## 7. Functions to extract objects from zips for checking

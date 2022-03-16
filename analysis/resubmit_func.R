@@ -29,6 +29,8 @@ resubmit_func <- function(object, group){
         TRUE
       } else if (stringr::str_detect(x[[19]][1], "LaTeX")){
         TRUE
+      } else if (stringr::str_detect(x[[19]][1], "tlmgr")){
+        TRUE
       } else{
         FALSE
       }
@@ -49,4 +51,27 @@ resubmit_func <- function(object, group){
   } else {
     return(TRUE)
   }
+}
+
+resubmit_all <- function(grp, condition){
+  didehpc::web_login()
+  to_rerun <- which(grp$status() %in% condition)
+  unlink(gsub("\\.zip", "", gsub("raw", "derived", grp$X[to_rerun])), recursive = TRUE)
+  obj$submit(grp$ids[to_rerun])
+}
+
+get_errors <- function(grp){
+  status <- grp$status()
+
+  # see what has errored
+  lapply(seq_along(which(status %in% "ERROR")), function(x){
+    grp$tasks[[which(status == "ERROR")[x]]]$log()$body
+  })
+}
+get_iso3cs <- function(grp, status){
+  # see what has it happened to
+  purrr::map_chr(which(grp$status() %in% status), function(x){
+    log <- grp$tasks[[x]]$log()$body[[18]]
+    stringr::str_split(log[stringr::str_detect(log, "iso3c:")], "iso3c: ")[[1]][2]
+  })
 }
