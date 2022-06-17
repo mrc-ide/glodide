@@ -1,6 +1,6 @@
 # Setting Up Cluster From New
 
-# Log in to didehpc
+# Log in to didehpc (Replace with own credentials!)
 credentials = "C:/Users/gbarnsle/.smbcredentials"
 options(didehpc.cluster = "fi--didemrchnb",
         didehpc.username = "gbarnsle")
@@ -13,6 +13,11 @@ options(didehpc.cluster = "fi--didemrchnb",
 # install.packages("didehpc")
 # install.packages("orderly")
 
+# tinytex::install_tinytex(
+#   force = TRUE,
+#   dir = file.path(dirname(here::here()), "TinyTex")
+# )
+
 ## ------------------------------------
 ## 2. Setting up a cluster configuration
 ## ------------------------------------
@@ -20,14 +25,15 @@ options(didehpc.cluster = "fi--didemrchnb",
 options(didehpc.cluster = "fi--didemrchnb")
 
 # not if T is not mapped then map network drive
+network_map <- stringr::str_remove(dirname(dirname(here::here())), "/") #Ensure this is correct
 didehpc::didehpc_config_global(temp=didehpc::path_mapping("tmp",
                                                           "T:",
                                                           "//fi--didef3.dide.ic.ac.uk/tmp",
                                                           "T:"),
                                home=didehpc::path_mapping("ncov",
-                                                          "N:",
+                                                          network_map,
                                                           "//wpia-hpc-hn-app/ncov-global",
-                                                          ":"),
+                                                          network_map),
                                credentials=credentials,
                                cluster = "fi--didemrchnb")
 
