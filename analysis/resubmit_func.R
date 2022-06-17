@@ -17,9 +17,9 @@ resubmit_func <- function(object, group){
     failed <- unlist(lapply(errs, function(x){
       if(length(x)<19){
         TRUE
-      } else if(stringr::str_detect(x[[19]][1],
-                                    "missing value where TRUE/FALSE")){
-        TRUE
+      # } else if(stringr::str_detect(x[[19]][1],
+      #                               "missing value where TRUE/FALSE")){
+      #   TRUE
       } else if(stringr::str_detect(x[[19]][1],
                                     "unable to load shared object")){
         TRUE
@@ -30,6 +30,8 @@ resubmit_func <- function(object, group){
       } else if (stringr::str_detect(x[[19]][1], "LaTeX")){
         TRUE
       } else if (stringr::str_detect(x[[19]][1], "tlmgr")){
+        TRUE
+      } else if (stringr::str_detect(x[[19]][1], "unserialize")){
         TRUE
       } else{
         FALSE
