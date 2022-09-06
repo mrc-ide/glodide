@@ -20,18 +20,18 @@ resubmit_func <- function(object, group){
       # } else if(stringr::str_detect(x[[19]][1],
       #                               "missing value where TRUE/FALSE")){
       #   TRUE
-      } else if(stringr::str_detect(x[[19]][1],
+      } else if(stringr::str_detect(x[[workers - 1]][1],
                                     "unable to load shared object")){
         TRUE
-      } else if (stringr::str_detect(x[[19]][1], "Error in serverSocket")){
+      } else if (stringr::str_detect(x[[workers - 1]][1], "Error in serverSocket")){
         TRUE
-      } else if (stringr::str_detect(x[[19]][1], "Integration failure")){
+      } else if (stringr::str_detect(x[[workers - 1]][1], "Integration failure")){
         TRUE
-      } else if (stringr::str_detect(x[[19]][1], "LaTeX")){
+      } else if (stringr::str_detect(x[[workers - 1]][1], "LaTeX")){
         TRUE
-      } else if (stringr::str_detect(x[[19]][1], "tlmgr")){
+      } else if (stringr::str_detect(x[[workers - 1]][1], "tlmgr")){
         TRUE
-      } else if (stringr::str_detect(x[[19]][1], "unserialize")){
+      } else if (stringr::str_detect(x[[workers - 1]][1], "unserialize")){
         TRUE
       } else{
         FALSE
@@ -73,7 +73,12 @@ get_errors <- function(grp){
 get_iso3cs <- function(grp, status){
   # see what has it happened to
   purrr::map_chr(which(grp$status() %in% status), function(x){
-    log <- grp$tasks[[x]]$log()$body[[18]]
-    stringr::str_split(log[stringr::str_detect(log, "iso3c:")], "iso3c: ")[[1]][2]
+    message(x)
+    if(x != 112){
+      log <- grp$tasks[[x]]$log()$body[[11]]
+      stringr::str_split(log[stringr::str_detect(log, "iso3c:")], "iso3c: ")[[1]][2]
+    } else {
+      "PRT"
+    }
   })
 }

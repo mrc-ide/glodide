@@ -12,6 +12,7 @@ options(didehpc.cluster = "fi--didemrchnb",
 # install.packages("pkgdepends")
 # install.packages("didehpc")
 # install.packages("orderly")
+# install.packages("rrq")
 
 # tinytex::install_tinytex(
 #   force = TRUE,
@@ -54,17 +55,14 @@ ctx <- context::context_save(
 
 
 # set up a specific config for here as we need to specify the large RAM nodes
-config <- didehpc::didehpc_config(template = "32Core")
-config$resource$parallel <- "FALSE"
-config$resource$type <- "Cores"
-config$resource$count <- 3
+config <- didehpc::didehpc_config(template = "32Core", use_workers = TRUE)
 # Configure the Queue
 obj <- didehpc::queue_didehpc(ctx, config = config)
 
 ## 3. Submit the jobs
 ## ------------------------------------
 
-date <- "2022-05-30"
+date <- "2022-09-01"
 workdir <- file.path(
   "analysis/data/",
   paste0(
@@ -77,60 +75,71 @@ workdir <- normalizePath(workdir)
 
 # Grabbing tasks to be run
 tasks <- readRDS(gsub("derived", "raw", file.path(workdir, "bundles.rds")))
+iso3cs <- names(tasks)
 tasks <- as.character(vapply(tasks, "[[", character(1), "path"))
+
+#How many workers
+n_workers <- 13
+
+#One country takes around 5806 seconds and 185 countries split into the workers
+#((ceiling(185/workers) * (5806))/60/60) = 24.2 hours total
 
 # submit our tasks to the cluster
 split_path <- function(x) if (dirname(x)==x) x else c(basename(x),split_path(dirname(x)))
 bundle_name <- paste0(tail(rev(split_path(workdir)), 2), collapse = "_")
 grp <- obj$lapply(tasks, orderly::orderly_bundle_run, workdir = workdir,
-                  name = paste0(bundle_name, ""))
+                  name = paste0(bundle_name, "_1"))
+workers <- obj$submit_workers(n_workers)
+rrq <- obj$rrq_controller()
 
 ## ------------------------------------
 ## 4. Check on our jobs
 ## ------------------------------------
 
-#get the resubmit function
+#source functions for checking on fits
 source(file.path(here::here(), "analysis", "resubmit_func.R"))
 
-#this function checks for common errors can be safely resubmitted
-#then returns TRUE if tasks are still running
-keep_running <- resubmit_func(obj, grp)
-#this loops checks the fits every 30 minutes
-while(keep_running){# | keep_running_2){
+#see how they are running
+print(table(grp$status()))
+#may fail depening on status of pandoc/tinytex on cluster(just rerun these)
+#see reports from workers
+rrq$worker_log_tail(n = 2)
+#check every 30 minutes for 5 hours
+for(i in 1:10){# | keep_running_2){
   Sys.sleep(30*60)
   print("LMIC Fit")
-  keep_running <- resubmit_func(obj, grp)
   print(table(grp$status()))
 }
 
 # see what has errored
 errs <- get_errors(grp)
 
-#get their iso3cs
-dput(get_iso3cs(grp, c("ERROR")))
+#get the iso3cs of the tasks with a givens status, might need adjusting
+dput(iso3cs[which(grp$status() == "ERROR")])
 
-# do we just need to rerun all with errors
-resubmit_all(grp_rerun, c("ERROR"))
-
+obj$submit(grp$ids[grp$status() == "ERROR"])
+workers <- obj$submit_workers(2)
 ## ------------------------------------
-## 6. Submit new jobs that come from a different bundle - this bit you will rewrite
+## 6. Submit new jobs that need rerunning
 ## ------------------------------------
 
 # Grabbing tasks to be run
 tasks <- readRDS(gsub("derived", "raw", file.path(workdir, "bundles_to_rerun.rds")))
+iso3cs_rerun <- names(tasks)
 tasks <- as.character(vapply(tasks, "[[", character(1), "path"))
 
 # submit our tasks to the cluster
 split_path <- function(x) if (dirname(x)==x) x else c(basename(x),split_path(dirname(x)))
 bundle_name <- paste0("rerun_", paste0(tail(rev(split_path(workdir)), 2), collapse = "_"))
 grp_rerun <- obj$lapply(tasks, orderly::orderly_bundle_run, workdir = workdir,
-                  name = paste0(bundle_name, ""))
-
-didehpc:::reconcile(obj, grp_rerun$ids)
+                  name = paste0(bundle_name, "_2"))
+workers <- obj$submit_workers(14)
 table(grp_rerun$status())
 
 # see what has errorred
 
-errs <- get_errors(grp_excess_rerun)
+errs <- get_errors(grp_rerun_2)
 
-resubmit_all(grp_excess_rerun, c("ERROR", "MISSING"))
+dput(iso3cs_rerun[which(grp_rerun$status() == "ERROR")])
+
+resubmit_all(grp_rerun, c("ERROR", "MISSING"))
